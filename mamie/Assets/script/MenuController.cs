@@ -2,15 +2,20 @@ using UnityEngine;
 
 public class MenuController : MonoBehaviour
 {
-public void StartGame()
+    private GameManager manager;
+
+    private void Start()
     {
-        // Load the main game scene
-        UnityEngine.SceneManagement.SceneManager.LoadScene("MainGameScene");
+        manager = GameManager.instance;  
+    }
+
+    public void ChangeScene(string MenuPrincipal)
+    {
+        manager.ChangeScene(MenuPrincipal); 
     }
 
     public void QuitGame()
     {
-        // Quit the application
-        Application.Quit();
+        manager.QuitGame();
     }
 }
