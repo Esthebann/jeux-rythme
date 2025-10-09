@@ -1,54 +1,69 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using System.Collections.Generic;
 
 public class FlexibleCarousel : MonoBehaviour
 {
-    [Header("Covers (MaskCircles à assigner)")]
-    public List<Image> covers = new List<Image>();
+    [Header("Covers")]
+    public List<Image> covers;
 
-    [Header("Positions visibles (définies dans l'éditeur)")]
+    [Header("Positions")]
     public Transform leftAnchor;
     public Transform centerAnchor;
     public Transform rightAnchor;
 
-    [Header("Échelle / Taille")]
-    [Tooltip("Taille du cover central (1 = taille normale)")]
-    public float centerScale = 1.8f; // plus grand mais uniforme
-    [Tooltip("Taille des covers latéraux")]
-    public float sideScale = 0.8f;
-
     [Header("Animation")]
+    public float centerScale = 1.4f;
+    public float sideScale = 0.8f;
     public float lerpSpeed = 10f;
-    [Tooltip("Amplitude du zoom pulsant (0 = pas de pulsation)")]
-    public float pulseAmplitude = 0.1f;
-    [Tooltip("Vitesse de la pulsation")]
+    public float pulseAmplitude = 0.08f;
     public float pulseSpeed = 2f;
 
+    [Header("Panel")]
+    public GameObject levelInfoPanel;
+    public TMP_Text levelTitleText;
+    public Button startButton;
+    public Button backButton;
+
     private int centerIndex = 0;
+    private bool isPanelOpen = false;
+    private float pulseTimer = 0f;
+    private Vector3 offscreenPosition = new Vector3(0, -1000, 0);
 
-    void Start()
+    // Gestion de la sélection clavier dans le panel
+    private enum PanelButton { Start, Back }
+    private PanelButton currentPanelSelection = PanelButton.Start;
+
+    private void Start()
     {
-        if (covers == null || covers.Count < 3)
+        // Ajout des listeners aux covers
+        foreach (var img in covers)
         {
-            Debug.LogError("Il faut au moins 3 covers !");
-            return;
+            Button btn = img.GetComponent<Button>();
+            if (btn != null)
+                btn.onClick.AddListener(() => OnCoverClicked(img));
         }
 
-        if (leftAnchor == null || centerAnchor == null || rightAnchor == null)
-        {
-            Debug.LogError("Tu dois assigner les 3 ancres (Left, Center, Right) dans l'inspecteur !");
-            return;
-        }
+        startButton.onClick.AddListener(OnStartClicked);
+        backButton.onClick.AddListener(ClosePanel);
 
+        levelInfoPanel.SetActive(false);
         UpdateCarousel(true);
     }
 
-    void Update()
+    private void Update()
     {
-        if (covers == null || covers.Count < 3) return;
+        if (!isPanelOpen)
+            HandleCarouselInput();
+        else
+            HandlePanelInput();
 
-        // Navigation clavier
+        AnimateCarousel();
+    }
+
+    private void HandleCarouselInput()
+    {
         if (Input.GetKeyDown(KeyCode.RightArrow))
         {
             centerIndex = (centerIndex + 1) % covers.Count;
@@ -59,97 +74,147 @@ public class FlexibleCarousel : MonoBehaviour
             centerIndex = (centerIndex - 1 + covers.Count) % covers.Count;
             UpdateCarousel();
         }
-
-        if (Input.GetKeyDown(KeyCode.Return))
+        else if (Input.GetKeyDown(KeyCode.Return))
         {
-            Debug.Log("Niveau sélectionné : " + covers[centerIndex].name);
+            OnCoverClicked(covers[centerIndex]);
+        }
+    }
+
+    private void HandlePanelInput()
+    {
+        // Fermer le panel avec Escape ou Backspace
+        if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace))
+        {
+            ClosePanel();
+            return;
         }
 
-        // Animation fluide
+        // Changer le bouton sélectionné avec flèche gauche/droite dans le panel
+        if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            currentPanelSelection = (currentPanelSelection == PanelButton.Start) ? PanelButton.Back : PanelButton.Start;
+        }
+
+        // Valider le bouton sélectionné avec Enter
+        if (Input.GetKeyDown(KeyCode.Return))
+        {
+            if (currentPanelSelection == PanelButton.Start)
+                OnStartClicked();
+            else
+                ClosePanel();
+        }
+    }
+
+    private void AnimateCarousel()
+    {
+        pulseTimer += Time.deltaTime * pulseSpeed;
+
         for (int i = 0; i < covers.Count; i++)
         {
             Vector3 targetPos;
-            Vector3 targetScale;
-            int zIndex;
+            float targetScale;
 
             if (i == centerIndex)
             {
                 targetPos = centerAnchor.localPosition;
-
-                // 🔥 effet de pulsation uniforme (zoom doux)
-                float pulse = Mathf.Sin(Time.time * pulseSpeed) * pulseAmplitude;
-                float scale = centerScale + pulse;
-
-                targetScale = Vector3.one * scale;
-                zIndex = 2;
+                targetScale = centerScale + Mathf.Sin(pulseTimer) * pulseAmplitude;
             }
             else if (i == (centerIndex - 1 + covers.Count) % covers.Count)
             {
                 targetPos = leftAnchor.localPosition;
-                targetScale = Vector3.one * sideScale;
-                zIndex = 1;
+                targetScale = sideScale;
             }
             else if (i == (centerIndex + 1) % covers.Count)
             {
                 targetPos = rightAnchor.localPosition;
-                targetScale = Vector3.one * sideScale;
-                zIndex = 1;
+                targetScale = sideScale;
             }
             else
             {
-                targetPos = new Vector3(0, -2000, 0);
-                targetScale = Vector3.one * sideScale;
-                zIndex = 0;
+                targetPos = offscreenPosition;
+                targetScale = sideScale;
             }
 
             RectTransform rect = covers[i].rectTransform;
             rect.localPosition = Vector3.Lerp(rect.localPosition, targetPos, Time.deltaTime * lerpSpeed);
-            rect.localScale = Vector3.Lerp(rect.localScale, targetScale, Time.deltaTime * lerpSpeed);
-            covers[i].transform.SetSiblingIndex(zIndex);
+            rect.localScale = Vector3.Lerp(rect.localScale, Vector3.one * targetScale, Time.deltaTime * lerpSpeed);
         }
     }
 
-    void UpdateCarousel(bool instant = false)
+    private void UpdateCarousel(bool instant = false)
     {
         for (int i = 0; i < covers.Count; i++)
         {
             Vector3 targetPos;
-            Vector3 targetScale;
-            int zIndex;
+            float targetScale;
 
             if (i == centerIndex)
             {
                 targetPos = centerAnchor.localPosition;
-                targetScale = Vector3.one * centerScale;
-                zIndex = 2;
+                targetScale = centerScale;
             }
             else if (i == (centerIndex - 1 + covers.Count) % covers.Count)
             {
                 targetPos = leftAnchor.localPosition;
-                targetScale = Vector3.one * sideScale;
-                zIndex = 1;
+                targetScale = sideScale;
             }
             else if (i == (centerIndex + 1) % covers.Count)
             {
                 targetPos = rightAnchor.localPosition;
-                targetScale = Vector3.one * sideScale;
-                zIndex = 1;
+                targetScale = sideScale;
             }
             else
             {
-                targetPos = new Vector3(0, -2000, 0);
-                targetScale = Vector3.one * sideScale;
-                zIndex = 0;
+                targetPos = offscreenPosition;
+                targetScale = sideScale;
             }
 
             RectTransform rect = covers[i].rectTransform;
-
             if (instant)
             {
                 rect.localPosition = targetPos;
-                rect.localScale = targetScale;
-                covers[i].transform.SetSiblingIndex(zIndex);
+                rect.localScale = Vector3.one * targetScale;
             }
         }
+    }
+
+    private void OnCoverClicked(Image clickedCover)
+    {
+        int clickedIndex = covers.IndexOf(clickedCover);
+
+        if (clickedIndex != centerIndex)
+        {
+            centerIndex = clickedIndex;
+            UpdateCarousel();
+        }
+        else
+        {
+            OpenPanel(clickedCover.name);
+        }
+    }
+
+    private void OpenPanel(string levelName)
+    {
+        isPanelOpen = true;
+        levelInfoPanel.SetActive(true);
+
+        if (levelTitleText != null)
+            levelTitleText.text = "Niveau : " + levelName;
+
+        // Start sélectionné par défaut
+        currentPanelSelection = PanelButton.Start;
+    }
+
+    private void ClosePanel()
+    {
+        levelInfoPanel.SetActive(false);
+        isPanelOpen = false;
+        UpdateCarousel(true);
+    }
+
+    private void OnStartClicked()
+    {
+        GameManager.instance.selectedLevelName = covers[centerIndex].name;
+        GameManager.instance.StartSelectedLevel();
     }
 }
