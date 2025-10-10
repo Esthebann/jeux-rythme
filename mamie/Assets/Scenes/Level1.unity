@@ -437,12 +437,17 @@ MonoBehaviour:
   notePrefab: {fileID: 6264640257834288105, guid: 714bb983ec0ccc041a30b54f3a83a7a5, type: 3}
   audioSource: {fileID: 335604260}
   travelTime: 1.5
-  hitWindow: 0.15
-  scoreText: {fileID: 1135820266}
-  comboText: {fileID: 1143012507}
-  hitText: {fileID: 1354183771}
-  missText: {fileID: 814196632}
-  feedbackDuration: 0.5
+  perfectWindow: 0.05
+  greatWindow: 0.08
+  earlyWindow: 0.1
+  lateWindow: 0.15
+  availableSprites:
+  - name: A
+    sprite: {fileID: -3452447143995332672, guid: 1286b56236ee7334c8233168631d5bd8, type: 3}
+  ScoreText: {fileID: 1135820266}
+  ComboText: {fileID: 1143012507}
+  HitText: {fileID: 1354183771}
+  MissText: {fileID: 814196632}
 --- !u!4 &335604262
 Transform:
   m_ObjectHideFlags: 0
@@ -1094,7 +1099,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -129.29, y: 208.17}
+  m_AnchoredPosition: {x: 141.3, y: 208.17}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1354183770

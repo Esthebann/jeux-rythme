@@ -1,114 +1,115 @@
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 using System.Collections;
 using System.Collections.Generic;
-using TMPro;
 
 [System.Serializable]
-public class NoteData { public float time; public int lane; }
+public class NoteData
+{
+    public float time;
+    public int lane;
+    public string spriteName;
+}
 
 [System.Serializable]
-public class NotesWrapper { public NoteData[] notes; }
+public class LevelData
+{
+    public string songName;
+    public NoteData[] notes;
+}
 
 [System.Serializable]
-public class LevelData { public string songName; public NotesWrapper notesWrapper; }
+public class NoteSprite
+{
+    public string name;
+    public Sprite sprite;
+}
 
 public class RythmGameManager : MonoBehaviour
 {
-    [Header("Zones")]
+    [Header("Zones de jeu")]
     public RectTransform leftZone;
     public RectTransform rightZone;
 
-    [Header("Prefabs & Audio")]
+    [Header("Objets et sons")]
     public GameObject notePrefab;
     public AudioSource audioSource;
 
-    [Header("Settings")]
+    [Header("Paramètres")]
     public float travelTime = 1.5f;
-    public float hitWindow = 0.15f;
+
+    [Header("Fenêtres de hit")]
+    public float perfectWindow = 0.05f;
+    public float greatWindow = 0.08f;
+    public float earlyWindow = 0.10f;
+    public float lateWindow = 0.15f;
+
+    public NoteSprite[] availableSprites;
 
     [Header("UI")]
-    public TMP_Text scoreText;
-    public TMP_Text comboText;
-
-    [Header("Feedback UI")]
-    public TMP_Text hitText;
-    public TMP_Text missText;
-    public float feedbackDuration = 0.5f;
+    public TextMeshProUGUI ScoreText;
+    public TextMeshProUGUI ComboText;
+    public TextMeshProUGUI HitText;
+    public TextMeshProUGUI MissText;
 
     private double dspStartTime;
-    private NoteData[] notes;
-    private int score = 0;
+    private LevelData level;
+
     private int combo = 0;
-    private HashSet<int> hitNotes = new HashSet<int>();
+    private int score = 0;
+    private List<NoteData> hitNotes = new List<NoteData>();
+
+    // Exemple de niveau interne
+    private string levelJson = @"
+    {
+      ""songName"": ""sakura"",
+      ""notes"": [
+        { ""time"": 1.0, ""lane"": 0, ""spriteName"": ""A"" },
+        { ""time"": 2.0, ""lane"": 1, ""spriteName"": ""A"" },
+        { ""time"": 3.5, ""lane"": 0, ""spriteName"": ""A"" },
+        { ""time"": 4.0, ""lane"": 1, ""spriteName"": ""A"" },
+        { ""time"": 5.0, ""lane"": 0, ""spriteName"": ""Rouge"" },
+        { ""time"": 6.0, ""lane"": 1, ""spriteName"": ""Bleu"" },
+        { ""time"": 7.0, ""lane"": 0, ""spriteName"": ""Jaune"" },
+        { ""time"": 8.0, ""lane"": 1, ""spriteName"": ""Vert"" }
+      ]
+    }";
 
     void Start()
     {
-        LoadLevelFromString();
+        level = JsonUtility.FromJson<LevelData>(levelJson);
+        Debug.Log("Niveau chargé avec " + level.notes.Length + " notes.");
         StartCoroutine(StartMusic());
-    }
-
-    void LoadLevelFromString()
-    {
-        // JSON directement dans le script
-        string json = @"
-        {
-          ""songName"": ""sakura"",
-          ""notesWrapper"": {
-            ""notes"": [
-              { ""time"": 1.0, ""lane"": 0 },
-              { ""time"": 2.0, ""lane"": 1 },
-              { ""time"": 3.5, ""lane"": 0 },
-              { ""time"": 4.0, ""lane"": 1 },
-              { ""time"": 5.0, ""lane"": 1 },
-              { ""time"": 6.0, ""lane"": 1 },
-              { ""time"": 7.0, ""lane"": 1 },
-              { ""time"": 8.0, ""lane"": 1 },
-              { ""time"": 9.0, ""lane"": 1 }
-            ]
-          }
-        }";
-
-        LevelData level = JsonUtility.FromJson<LevelData>(json);
-
-        if (level == null || level.notesWrapper == null || level.notesWrapper.notes == null)
-        {
-            Debug.LogError("Erreur parsing JSON ou aucune note trouvée");
-            return;
-        }
-
-        notes = level.notesWrapper.notes;
-        Debug.Log("Nombre de notes lues : " + notes.Length);
-
-        foreach (var n in notes)
-            Debug.Log("Note: lane " + n.lane + ", time " + n.time);
-
-        // Stocker le nom de la chanson
-        audioSource.clip = Resources.Load<AudioClip>("Audio/" + level.songName);
     }
 
     IEnumerator StartMusic()
     {
-        if (audioSource.clip == null)
+        yield return new WaitForSeconds(1f);
+        dspStartTime = AudioSettings.dspTime + 0.5f;
+
+        AudioClip clip = Resources.Load<AudioClip>("Audio/" + level.songName);
+        if (clip == null)
         {
-            Debug.LogError("AudioClip introuvable !");
+            Debug.LogError("Audio introuvable : " + level.songName);
             yield break;
         }
 
-        dspStartTime = AudioSettings.dspTime + 0.5;
+        audioSource.clip = clip;
         audioSource.PlayScheduled(dspStartTime);
-        Debug.Log("Audio lancé avec PlayScheduled à " + dspStartTime);
 
-        for (int i = 0; i < notes.Length; i++)
-            StartCoroutine(SpawnNoteSafe(notes[i], i));
+        foreach (var note in level.notes)
+        {
+            StartCoroutine(SpawnNote(note));
+        }
     }
 
-    IEnumerator SpawnNoteSafe(NoteData note, int index)
+    IEnumerator SpawnNote(NoteData note)
     {
-        double targetTime = dspStartTime + note.time;
-        double spawnTime = targetTime - travelTime;
+        double spawnTime = dspStartTime + note.time - travelTime;
         double wait = spawnTime - AudioSettings.dspTime;
-
-        yield return new WaitForSecondsRealtime(Mathf.Max(0f, (float)wait));
+        if (wait > 0)
+            yield return new WaitForSecondsRealtime((float)wait);
 
         RectTransform zone = note.lane == 0 ? leftZone : rightZone;
         Vector3 startPos = zone.anchoredPosition + new Vector2(note.lane == 0 ? -800 : 800, 0);
@@ -118,65 +119,103 @@ public class RythmGameManager : MonoBehaviour
         RectTransform rt = obj.GetComponent<RectTransform>();
         rt.anchoredPosition = startPos;
 
-        bool hit = false;
-
-        while (AudioSettings.dspTime < targetTime + hitWindow)
+        Image img = obj.GetComponent<Image>();
+        if (img != null)
         {
-            float t = 1 - (float)((targetTime - AudioSettings.dspTime) / travelTime);
-            rt.anchoredPosition = Vector3.Lerp(startPos, endPos, Mathf.Clamp01(t));
-            yield return null;
+            Sprite chosen = GetSpriteByName(note.spriteName);
+            if (chosen != null) img.sprite = chosen;
+            else Debug.LogWarning($"Aucun sprite trouvé pour '{note.spriteName}'");
         }
 
-        if (!hit)
+        double targetTime = dspStartTime + note.time;
+        while (AudioSettings.dspTime < targetTime)
         {
-            combo = 0;
-            UpdateUI();
-            if (missText != null)
-                StartCoroutine(ShowFeedback(missText));
+            float t = 1 - (float)((targetTime - AudioSettings.dspTime) / travelTime);
+            rt.anchoredPosition = Vector3.Lerp(startPos, endPos, t);
+            yield return null;
         }
 
         Destroy(obj);
     }
 
+    Sprite GetSpriteByName(string name)
+    {
+        foreach (var s in availableSprites)
+            if (s.name == name) return s.sprite;
+        return null;
+    }
+
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.LeftArrow)) CheckHit(0);
-        if (Input.GetKeyDown(KeyCode.RightArrow)) CheckHit(1);
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
+            CheckHit(0);
+        if (Input.GetKeyDown(KeyCode.RightArrow))
+            CheckHit(1);
     }
 
     void CheckHit(int lane)
     {
         float songTime = (float)(AudioSettings.dspTime - dspStartTime);
+        bool hit = false;
+        string hitResult = "";
 
-        for (int i = 0; i < notes.Length; i++)
+        foreach (var n in level.notes)
         {
-            var n = notes[i];
-            if (n.lane == lane && Mathf.Abs(n.time - songTime) <= hitWindow && !hitNotes.Contains(i))
+            if (n.lane == lane && !hitNotes.Contains(n))
             {
-                hitNotes.Add(i);
-                score += 100;
+                float diff = songTime - n.time;
+
+                // 🎯 Détermination du type de hit
+                if (Mathf.Abs(diff) <= perfectWindow) hitResult = "PERFECT";
+                else if (Mathf.Abs(diff) <= greatWindow) hitResult = "GREAT";
+                else if (diff < 0 && Mathf.Abs(diff) <= earlyWindow) hitResult = "EARLY";
+                else if (diff > 0 && Mathf.Abs(diff) <= lateWindow) hitResult = "LATE";
+                else continue; // hors fenêtre
+
+                hit = true;
                 combo++;
-                UpdateUI();
-                if (hitText != null) StartCoroutine(ShowFeedback(hitText));
-                return;
+
+                // Score selon type de hit
+                int points = 0;
+                switch (hitResult)
+                {
+                    case "PERFECT": points = 150; break;
+                    case "GREAT": points = 125; break;
+                    default: points = 100; break; // EARLY / LATE
+                }
+                score += points;
+
+                hitNotes.Add(n);
+
+                if (HitText != null) HitText.text = hitResult + "!";
+                if (ComboText != null) ComboText.text = "Combo: " + combo;
+                if (ScoreText != null) ScoreText.text = "Score: " + score;
+
+                Debug.Log($"✅ {hitResult} lane {lane} | Combo = {combo} | Score = {score}");
+                StartCoroutine(ClearHitText());
+                break;
             }
         }
 
-        combo = 0;
-        UpdateUI();
-        if (missText != null) StartCoroutine(ShowFeedback(missText));
+        if (!hit)
+        {
+            combo = 0;
+            if (MissText != null) MissText.text = "MISS!";
+            if (ComboText != null) ComboText.text = "Combo: " + combo;
+            Debug.Log($"❌ MISS lane {lane} | Combo reset");
+            StartCoroutine(ClearMissText());
+        }
     }
 
-    void UpdateUI()
+    IEnumerator ClearHitText()
     {
-        if (scoreText != null) scoreText.text = "Score: " + score;
-        if (comboText != null) comboText.text = "Combo: " + combo;
+        yield return new WaitForSeconds(0.5f);
+        if (HitText != null) HitText.text = "";
     }
 
-    IEnumerator ShowFeedback(TMP_Text textComponent)
+    IEnumerator ClearMissText()
     {
-        textComponent.gameObject.SetActive(true);
-        yield return new WaitForSeconds(feedbackDuration);
-        textComponent.gameObject.SetActive(false);
+        yield return new WaitForSeconds(0.5f);
+        if (MissText != null) MissText.text = "";
     }
 }
