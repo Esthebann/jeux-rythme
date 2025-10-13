@@ -134,7 +134,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      large-red-square_1f7e5_0: 1805035343757685921
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

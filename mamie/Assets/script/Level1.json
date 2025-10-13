@@ -1,16 +1,13 @@
 {
   "songName": "sakura",
-  "notesWrapper": {
-    "notes": [
-      { "time": 1.0, "lane": 0 },
-      { "time": 2.0, "lane": 1 },
-      { "time": 3.5, "lane": 0 },
-      { "time": 4.0, "lane": 1 },
-      { "time": 5.0, "lane": 1 },
-      { "time": 6.0, "lane": 1 },
-      { "time": 7.0, "lane": 1 },
-      { "time": 8.0, "lane": 1 },
-      { "time": 9.0, "lane": 1 }
-    ]
-  }
+  "notes": [
+    { "time": 1.0, "lane": 0, "spriteName": "" },
+    { "time": 2.0, "lane": 1, "spriteName": "" },
+    { "time": 3.5, "lane": 0, "spriteName": "" },
+    { "time": 4.0, "lane": 1, "spriteName": "" },
+    { "time": 5.0, "lane": 0, "spriteName": "Rouge" },
+    { "time": 6.0, "lane": 1, "spriteName": "Bleu" },
+    { "time": 7.0, "lane": 0, "spriteName": "Jaune" },
+    { "time": 8.0, "lane": 1, "spriteName": "Vert" }
+  ]
 }

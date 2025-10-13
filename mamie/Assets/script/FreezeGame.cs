@@ -9,18 +9,12 @@ public class FreezeGame : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             isPaused = !isPaused;
-            if (isPaused)
-            {
-                Debug.Log("Jeu en pause");
-                Time.timeScale = 0f; // stoppe le temps
-                AudioListener.pause = true; // met le son en pause
-            }
-            else
-            {
-                Debug.Log("Jeu repris");
-                Time.timeScale = 1f; // reprend le temps
-                AudioListener.pause = false; // reprend le son
-            }
+            Time.timeScale = isPaused ? 0f : 1f;
+
+            // Pause uniquement la musique si tu veux, pas tous les sons
+            AudioListener.pause = isPaused;
+
+            Debug.Log(isPaused ? "Jeu en pause" : "Jeu repris");
         }
     }
 }

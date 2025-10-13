@@ -4,8 +4,6 @@ using UnityEngine.SceneManagement;
 public class GameManager : MonoBehaviour
 {
     public static GameManager instance { get; private set; }
-
-    // Nom du niveau actuellement sélectionné (défini par le carrousel)
     public string selectedLevelName;
 
     private void Awake()
@@ -21,13 +19,11 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // 🔹 Chargement d'une scène par nom (compatible avec les autres scripts)
     public void ChangeScene(string sceneName)
     {
         SceneManager.LoadScene(sceneName);
     }
 
-    // 🔹 Lance le niveau actuellement sélectionné (utilisé par le carrousel)
     public void StartSelectedLevel()
     {
         if (!string.IsNullOrEmpty(selectedLevelName))
@@ -41,13 +37,11 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // 🔹 Retourne au menu principal
     public void BackToMainMenu()
     {
         SceneManager.LoadScene("MenuPrincipal");
     }
 
-    // 🔹 Quitte le jeu
     public void QuitGame()
     {
         Debug.Log("Quitte le jeu...");
