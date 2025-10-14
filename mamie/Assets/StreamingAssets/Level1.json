@@ -1,10 +1,13 @@
 {
-  "songName": "sakura",
+  "songName": "Song",
   "notes": [
     { "time": 1.0, "lane": 0, "spriteName": "A", "animationName": "Gobelet", "trajectoryType": 0 },
     { "time": 2.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 1 },
     { "time": 2.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 2 },
     { "time": 2.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 0 },
+    { "time": 3.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 0 },
+    { "time": 4.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 0 },
+    { "time": 5.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 0 },
     { "time": 3.5, "lane": 0, "spriteName": "A", "animationName": "alcool", "trajectoryType": 2 }
   ]
 }

@@ -34,99 +34,64 @@ public class CircularCarousel : MonoBehaviour
     [Header("Home Button")]
     public Button HomeButton;
 
-    public enum Selection { Carousel, HomeButton, PanelStart, PanelBack }
+    public enum Selection { Carousel, HomeButton }
     [HideInInspector] public Selection currentSelection = Selection.Carousel;
     [HideInInspector] public int centerIndex = 0;
-    [HideInInspector] public bool isPanelOpen = false;
 
     private float pulseTimer = 0f;
     private Vector3 offscreenPosition = new Vector3(0, -1000, 0);
 
     private void Start()
     {
-        // Désactiver tous les listeners pour éviter conflits
         if (HomeButton != null) HomeButton.onClick.RemoveAllListeners();
         if (StartButton != null) StartButton.onClick.RemoveAllListeners();
         if (BackButton != null) BackButton.onClick.RemoveAllListeners();
 
-        levelInfoPanel.SetActive(false);
+        if (levelInfoPanel != null)
+            levelInfoPanel.SetActive(true);
+
         UpdateCarousel(true);
+        UpdatePanelInfo();
     }
 
     private void Update()
     {
-        if (!isPanelOpen)
-            HandleCarouselInput();
-        else
-            HandlePanelInput();
-
+        HandleCarouselInput();
         AnimateCarousel();
     }
 
     private void HandleCarouselInput()
     {
-        // Navigation haut/bas pour HomeButton
         if (Input.GetKeyDown(KeyCode.UpArrow))
             currentSelection = Selection.HomeButton;
         else if (Input.GetKeyDown(KeyCode.DownArrow) && currentSelection == Selection.HomeButton)
             currentSelection = Selection.Carousel;
 
-        // Déplacement carrousel
         if (currentSelection == Selection.Carousel)
         {
             if (Input.GetKeyDown(KeyCode.RightArrow))
             {
                 centerIndex = (centerIndex + 1) % covers.Count;
                 UpdateCarousel();
+                UpdatePanelInfo();
             }
             else if (Input.GetKeyDown(KeyCode.LeftArrow))
             {
                 centerIndex = (centerIndex - 1 + covers.Count) % covers.Count;
                 UpdateCarousel();
+                UpdatePanelInfo();
             }
         }
 
-        // Entrée
         if (Input.GetKeyDown(KeyCode.Return))
         {
             switch (currentSelection)
             {
                 case Selection.Carousel:
-                    OpenPanel(covers[centerIndex].name);
+                    StartLevelFromPanel();
                     break;
                 case Selection.HomeButton:
                     GameManager.instance.BackToMainMenu();
-                    break;
-            }
-        }
-    }
-
-    private void HandlePanelInput()
-    {
-        // Fermer panel avec Esc ou Backspace
-        if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace))
-        {
-            ClosePanel();
-            return;
-        }
-
-        // Flèches gauche/droite pour naviguer entre Start et Back
-        if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
-        {
-            currentSelection = (currentSelection == Selection.PanelStart) ? Selection.PanelBack : Selection.PanelStart;
-            HighlightPanelSelection();
-        }
-
-        // Entrée pour activer Start / Back
-        if (Input.GetKeyDown(KeyCode.Return))
-        {
-            switch (currentSelection)
-            {
-                case Selection.PanelStart:
-                    StartLevelFromPanel();
-                    break;
-                case Selection.PanelBack:
-                    ClosePanel();
                     break;
             }
         }
@@ -205,40 +170,26 @@ public class CircularCarousel : MonoBehaviour
         }
     }
 
-    public void OpenPanel(string levelName)
+    private void UpdatePanelInfo()
     {
-        isPanelOpen = true;
-        levelInfoPanel.SetActive(true);
+        string levelName = covers[centerIndex].name;
 
         if (levelTitleText != null)
             levelTitleText.text = "Niveau : " + levelName;
-        if (scoreText != null) scoreText.text = $"Score: {PlayerPrefs.GetInt(levelName + "_Score", 0)}";
-        if (accuracyText != null) accuracyText.text = $"Accuracy: {PlayerPrefs.GetFloat(levelName + "_Accuracy", 0f):F2}%";
-        if (maxComboText != null) maxComboText.text = $"Max Combo: {PlayerPrefs.GetInt(levelName + "_MaxCombo", 0)}";
 
-        currentSelection = Selection.PanelStart;
-        HighlightPanelSelection();
-    }
+        if (scoreText != null)
+            scoreText.text = $"Best Score: {PlayerPrefs.GetInt(levelName + "_BestScore", 0)}";
 
-    public void ClosePanel()
-    {
-        levelInfoPanel.SetActive(false);
-        isPanelOpen = false;
-        currentSelection = Selection.Carousel;
-        UpdateCarousel(true);
+        if (accuracyText != null)
+            accuracyText.text = $"Best Accuracy: {PlayerPrefs.GetFloat(levelName + "_BestAccuracy", 0f):F2}%";
+
+        if (maxComboText != null)
+            maxComboText.text = $"Best Combo: {PlayerPrefs.GetInt(levelName + "_BestCombo", 0)}";
     }
 
     public void StartLevelFromPanel()
     {
         GameManager.instance.selectedLevelName = covers[centerIndex].name;
         GameManager.instance.StartSelectedLevel();
-    }
-
-    private void HighlightPanelSelection()
-    {
-        if (StartButton != null)
-            StartButton.GetComponent<Image>().color = (currentSelection == Selection.PanelStart) ? Color.yellow : Color.white;
-        if (BackButton != null)
-            BackButton.GetComponent<Image>().color = (currentSelection == Selection.PanelBack) ? Color.yellow : Color.white;
     }
 }

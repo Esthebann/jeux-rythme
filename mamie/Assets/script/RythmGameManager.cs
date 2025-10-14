@@ -12,8 +12,8 @@ public class NoteData
     public float time;
     public int lane;
     public string spriteName;
-    public string animationName; // <- animation spécifique pour cette note
-    public int trajectoryType = 0; // 0 = droite, 1 = courbe haut, 2 = courbe bas
+    public string animationName;
+    public int trajectoryType = 0;
 }
 
 [System.Serializable]
@@ -70,7 +70,13 @@ public class RythmGameManager : MonoBehaviour
 
     void Start()
     {
-        StartCoroutine(LoadLevelFromFile("Level1.json"));
+        // Récupère le niveau sélectionné via GameManager si disponible, sinon fallback sur "Level1"
+        string selected = "Level1";
+        if (GameManager.instance != null && !string.IsNullOrEmpty(GameManager.instance.selectedLevelName))
+            selected = GameManager.instance.selectedLevelName;
+
+        // on attend la coroutine de chargement du fichier JSON
+        StartCoroutine(LoadLevelFromFile(selected + ".json"));
     }
 
     IEnumerator LoadLevelFromFile(string fileName)
@@ -84,7 +90,13 @@ public class RythmGameManager : MonoBehaviour
 
         string json = File.ReadAllText(path);
         level = JsonUtility.FromJson<LevelData>(json);
-        totalNotes = level.notes.Length;
+        if (level == null)
+        {
+            Debug.LogError("Impossible de parser le JSON : " + path);
+            yield break;
+        }
+
+        totalNotes = level.notes != null ? level.notes.Length : 0;
         Debug.Log($"Niveau chargé : {level.songName} ({totalNotes} notes)");
 
         UpdateUI();
@@ -97,7 +109,11 @@ public class RythmGameManager : MonoBehaviour
         yield return new WaitForSeconds(1f);
         dspStartTime = AudioSettings.dspTime + 0.5f;
 
-        AudioClip clip = Resources.Load<AudioClip>("Audio/" + level.songName);
+        // charge l'audio depuis Resources/Audio/<songName>
+        AudioClip clip = null;
+        if (!string.IsNullOrEmpty(level.songName))
+            clip = Resources.Load<AudioClip>("Audio/" + level.songName);
+
         if (clip == null)
         {
             Debug.LogError("Audio introuvable : " + level.songName);
@@ -107,8 +123,11 @@ public class RythmGameManager : MonoBehaviour
         audioSource.clip = clip;
         audioSource.PlayScheduled(dspStartTime);
 
-        foreach (var note in level.notes)
-            StartCoroutine(SpawnNote(note));
+        if (level.notes != null)
+        {
+            foreach (var note in level.notes)
+                StartCoroutine(SpawnNote(note));
+        }
     }
 
     IEnumerator SpawnNote(NoteData note)
@@ -126,18 +145,14 @@ public class RythmGameManager : MonoBehaviour
         RectTransform rt = obj.GetComponent<RectTransform>();
         rt.anchoredPosition = startPos;
 
-        // Assigner le sprite
         Image img = obj.GetComponent<Image>();
         Sprite chosen = GetSpriteByName(note.spriteName);
         if (img != null && chosen != null)
             img.sprite = chosen;
 
-        // Jouer l'animation spécifique
         Animator anim = obj.GetComponent<Animator>();
         if (anim != null && !string.IsNullOrEmpty(note.animationName))
-        {
             anim.Play(note.animationName);
-        }
 
         activeNotes.Add(obj);
 
@@ -154,7 +169,7 @@ public class RythmGameManager : MonoBehaviour
         {
             combo = 0;
             MissText.text = "MISS!";
-            accuracy = Mathf.Clamp(accuracy - (100f / totalNotes), 0f, 100f);
+            accuracy = Mathf.Clamp(accuracy - (100f / Mathf.Max(1, totalNotes)), 0f, 100f);
             UpdateUI();
             StartCoroutine(ClearMissText());
         }
@@ -169,12 +184,9 @@ public class RythmGameManager : MonoBehaviour
     {
         switch (type)
         {
-            case 1: // courbe vers le haut
-                return Vector3.Lerp(start, end, t) + new Vector3(0, Mathf.Sin(t * Mathf.PI) * 300f, 0);
-            case 2: // courbe vers le bas
-                return Vector3.Lerp(start, end, t) - new Vector3(0, Mathf.Sin(t * Mathf.PI) * 300f, 0);
-            default: // courbe qui reste droite
-                return Vector3.Lerp(start, end, t);
+            case 1: return Vector3.Lerp(start, end, t) + new Vector3(0, Mathf.Sin(t * Mathf.PI) * 300f, 0);
+            case 2: return Vector3.Lerp(start, end, t) - new Vector3(0, Mathf.Sin(t * Mathf.PI) * 300f, 0);
+            default: return Vector3.Lerp(start, end, t);
         }
     }
 
@@ -186,6 +198,8 @@ public class RythmGameManager : MonoBehaviour
 
     void CheckHit(int lane)
     {
+        if (level == null || level.notes == null) return;
+
         float songTime = (float)(AudioSettings.dspTime - dspStartTime);
         foreach (var n in level.notes)
         {
@@ -207,7 +221,7 @@ public class RythmGameManager : MonoBehaviour
             float accuracyLoss = 0f;
             switch (hitResult)
             {
-                case "PERFECT": points = 150; accuracyLoss = 0f; break;
+                case "PERFECT": points = 150; break;
                 case "GREAT": points = 125; accuracyLoss = 0.5f; break;
                 case "EARLY":
                 case "LATE": points = 100; accuracyLoss = 1f; break;
@@ -216,7 +230,7 @@ public class RythmGameManager : MonoBehaviour
             score += points;
             combo++;
             if (combo > maxCombo) maxCombo = combo;
-            accuracy = Mathf.Clamp(accuracy - (accuracyLoss / totalNotes), 0f, 100f);
+            accuracy = Mathf.Clamp(accuracy - (accuracyLoss / Mathf.Max(1, totalNotes)), 0f, 100f);
 
             HitText.text = hitResult;
             StartCoroutine(ClearHitText());
@@ -236,21 +250,21 @@ public class RythmGameManager : MonoBehaviour
 
     void UpdateUI()
     {
-        ScoreText.text = $"Score: {score}";
-        ComboText.text = $"Combo: {combo}";
-        AccuracyText.text = $"Accuracy: {accuracy:F2}%";
+        if (ScoreText != null) ScoreText.text = $"Score: {score}";
+        if (ComboText != null) ComboText.text = $"Combo: {combo}";
+        if (AccuracyText != null) AccuracyText.text = $"Accuracy: {accuracy:F2}%";
     }
 
     IEnumerator ClearHitText()
     {
         yield return new WaitForSeconds(0.5f);
-        HitText.text = "";
+        if (HitText != null) HitText.text = "";
     }
 
     IEnumerator ClearMissText()
     {
         yield return new WaitForSeconds(0.5f);
-        MissText.text = "";
+        if (MissText != null) MissText.text = "";
     }
 
     void CheckLevelEnd()
@@ -259,11 +273,37 @@ public class RythmGameManager : MonoBehaviour
         {
             levelEnded = true;
             Debug.Log("Niveau terminé !");
-            PlayerPrefs.SetInt("Level1_Score", score);
-            PlayerPrefs.SetFloat("Level1_Accuracy", accuracy);
-            PlayerPrefs.SetInt("Level1_MaxCombo", maxCombo);
+
+            // clé de sauvegarde : priorité à GameManager.instance.selectedLevelName si set,
+            // sinon essaye level.songName, sinon "Level1"
+            string levelKey = "Level1";
+            if (GameManager.instance != null && !string.IsNullOrEmpty(GameManager.instance.selectedLevelName))
+                levelKey = GameManager.instance.selectedLevelName;
+            else if (level != null && !string.IsNullOrEmpty(level.songName))
+                levelKey = level.songName;
+
+            // récupérer ancien meilleur
+            int bestScore = PlayerPrefs.GetInt(levelKey + "_BestScore", 0);
+            float bestAccuracy = PlayerPrefs.GetFloat(levelKey + "_BestAccuracy", 0f);
+            int bestCombo = PlayerPrefs.GetInt(levelKey + "_BestCombo", 0);
+
+            // mettre à jour si meilleur
+            bool isNewRecord = false;
+            if (score > bestScore)
+            {
+                PlayerPrefs.SetInt(levelKey + "_BestScore", score);
+                PlayerPrefs.SetFloat(levelKey + "_BestAccuracy", accuracy);
+                PlayerPrefs.SetInt(levelKey + "_BestCombo", maxCombo);
+                isNewRecord = true;
+                Debug.Log($"🎉 Nouveau record sur {levelKey} : {score}");
+            }
+            else
+            {
+                Debug.Log($"Pas de record. Meilleur existant pour {levelKey} = {bestScore}");
+            }
+
             PlayerPrefs.Save();
-            Debug.Log($"Stats sauvegardées : Score={score}, Accuracy={accuracy:F2}, MaxCombo={maxCombo}");
+            Debug.Log($"Stats de fin : Score={score}, Accuracy={accuracy:F2}, MaxCombo={maxCombo} (NewRecord={isNewRecord})");
         }
     }
 }
