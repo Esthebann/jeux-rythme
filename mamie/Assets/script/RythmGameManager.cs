@@ -9,7 +9,8 @@ using System.IO;
 [System.Serializable]
 public class NoteData
 {
-    public float time;
+    public float time;       // moment où la note doit être tapée (hitTime)
+    public float spawnTime;  // moment où la note apparaît
     public int lane;
     public string spriteName;
     public string animationName;
@@ -41,7 +42,6 @@ public class RythmGameManager : MonoBehaviour
     public GameObject notePrefab;
     public AudioSource audioSource;
     public NoteSprite[] availableSprites;
-    public float travelTime = 1.5f;
 
     [Header("UI")]
     public TMP_Text ScoreText;
@@ -55,6 +55,9 @@ public class RythmGameManager : MonoBehaviour
     public float greatWindow = 0.08f;
     public float earlyWindow = 0.10f;
     public float lateWindow = 0.15f;
+
+    [Header("Offset des notes (secondes)")]
+    public float timeOffset = 0.0f;
 
     private double dspStartTime;
     private LevelData level;
@@ -70,12 +73,10 @@ public class RythmGameManager : MonoBehaviour
 
     void Start()
     {
-        // Récupère le niveau sélectionné via GameManager si disponible, sinon fallback sur "Level1"
         string selected = "Level1";
         if (GameManager.instance != null && !string.IsNullOrEmpty(GameManager.instance.selectedLevelName))
             selected = GameManager.instance.selectedLevelName;
 
-        // on attend la coroutine de chargement du fichier JSON
         StartCoroutine(LoadLevelFromFile(selected + ".json"));
     }
 
@@ -109,7 +110,6 @@ public class RythmGameManager : MonoBehaviour
         yield return new WaitForSeconds(1f);
         dspStartTime = AudioSettings.dspTime + 0.5f;
 
-        // charge l'audio depuis Resources/Audio/<songName>
         AudioClip clip = null;
         if (!string.IsNullOrEmpty(level.songName))
             clip = Resources.Load<AudioClip>("Audio/" + level.songName);
@@ -132,13 +132,16 @@ public class RythmGameManager : MonoBehaviour
 
     IEnumerator SpawnNote(NoteData note)
     {
-        double spawnTime = dspStartTime + note.time - travelTime;
+        // attendre le spawnTime spécifique à la note
+        double spawnTime = dspStartTime + note.spawnTime;
         double wait = spawnTime - AudioSettings.dspTime;
         if (wait > 0)
             yield return new WaitForSecondsRealtime((float)wait);
 
         RectTransform zone = note.lane == 0 ? leftZone : rightZone;
-        Vector3 startPos = zone.anchoredPosition + new Vector2(note.lane == 0 ? -800 : 800, 0);
+
+        float startDistance = 800f;
+        Vector3 startPos = zone.anchoredPosition + new Vector2(note.lane == 0 ? -startDistance : startDistance, 0);
         Vector3 endPos = zone.anchoredPosition;
 
         GameObject obj = Instantiate(notePrefab, zone.parent);
@@ -156,15 +159,22 @@ public class RythmGameManager : MonoBehaviour
 
         activeNotes.Add(obj);
 
+        // déplacer la note entre spawnTime et time
         double targetTime = dspStartTime + note.time;
+        double travelDuration = note.time - note.spawnTime;
         while (AudioSettings.dspTime < targetTime)
         {
-            float t = 1 - (float)((targetTime - AudioSettings.dspTime) / travelTime);
+            float t = 1 - (float)((targetTime - AudioSettings.dspTime) / travelDuration);
             rt.anchoredPosition = CalculateTrajectory(startPos, endPos, t, note.trajectoryType);
             yield return null;
         }
 
-        yield return new WaitForSeconds(lateWindow + 0.05f);
+        // Gestion du miss
+        double missTime = targetTime + lateWindow;
+        double waitMiss = missTime - AudioSettings.dspTime;
+        if (waitMiss > 0)
+            yield return new WaitForSecondsRealtime((float)waitMiss);
+
         if (!hitNotes.Contains(note))
         {
             combo = 0;
@@ -201,12 +211,13 @@ public class RythmGameManager : MonoBehaviour
         if (level == null || level.notes == null) return;
 
         float songTime = (float)(AudioSettings.dspTime - dspStartTime);
+
         foreach (var n in level.notes)
         {
             if (hitNotes.Contains(n)) continue;
             if (n.lane != lane) continue;
 
-            float diff = songTime - n.time;
+            float diff = songTime - (n.time + timeOffset);
             string hitResult = null;
 
             if (Mathf.Abs(diff) <= perfectWindow) hitResult = "PERFECT";
@@ -273,37 +284,7 @@ public class RythmGameManager : MonoBehaviour
         {
             levelEnded = true;
             Debug.Log("Niveau terminé !");
-
-            // clé de sauvegarde : priorité à GameManager.instance.selectedLevelName si set,
-            // sinon essaye level.songName, sinon "Level1"
-            string levelKey = "Level1";
-            if (GameManager.instance != null && !string.IsNullOrEmpty(GameManager.instance.selectedLevelName))
-                levelKey = GameManager.instance.selectedLevelName;
-            else if (level != null && !string.IsNullOrEmpty(level.songName))
-                levelKey = level.songName;
-
-            // récupérer ancien meilleur
-            int bestScore = PlayerPrefs.GetInt(levelKey + "_BestScore", 0);
-            float bestAccuracy = PlayerPrefs.GetFloat(levelKey + "_BestAccuracy", 0f);
-            int bestCombo = PlayerPrefs.GetInt(levelKey + "_BestCombo", 0);
-
-            // mettre à jour si meilleur
-            bool isNewRecord = false;
-            if (score > bestScore)
-            {
-                PlayerPrefs.SetInt(levelKey + "_BestScore", score);
-                PlayerPrefs.SetFloat(levelKey + "_BestAccuracy", accuracy);
-                PlayerPrefs.SetInt(levelKey + "_BestCombo", maxCombo);
-                isNewRecord = true;
-                Debug.Log($"🎉 Nouveau record sur {levelKey} : {score}");
-            }
-            else
-            {
-                Debug.Log($"Pas de record. Meilleur existant pour {levelKey} = {bestScore}");
-            }
-
-            PlayerPrefs.Save();
-            Debug.Log($"Stats de fin : Score={score}, Accuracy={accuracy:F2}, MaxCombo={maxCombo} (NewRecord={isNewRecord})");
+            // sauvegarde des scores…
         }
     }
 }

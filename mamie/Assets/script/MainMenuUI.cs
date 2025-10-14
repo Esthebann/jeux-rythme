@@ -10,7 +10,7 @@ public class MainMenuUI : MonoBehaviour
     {
         // On sécurise les liens au GameManager au cas où la scène a été rechargée
         if (playButton != null)
-            playButton.onClick.AddListener(() => GameManager.instance.ChangeScene("LevelChoice"));
+            playButton.onClick.AddListener(() => GameManager.instance.ChangeScene("SceneDialogue"));
 
         if (quitButton != null)
             quitButton.onClick.AddListener(() => GameManager.instance.QuitGame());

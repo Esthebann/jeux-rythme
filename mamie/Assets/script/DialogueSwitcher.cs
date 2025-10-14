@@ -4,7 +4,7 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using System.Collections;
 
-public class DialogueSwitcher: MonoBehaviour
+public class DialogueSwitcher : MonoBehaviour
 {
     [Header("UI Elements")]
     public Image bubbleA;        // Bulle du perso 1
@@ -12,12 +12,13 @@ public class DialogueSwitcher: MonoBehaviour
     public Image bubbleB;        // Bulle du perso 2
     public TMP_Text textB;
     public TMP_Text nameText;    // Optionnel
+    public Button skipButton;    // 🔹 Nouveau bouton Skip
 
     [Header("Dialogues Settings")]
     [TextArea(3, 10)]
-    public string[] dialogues;   // Les textes
-    public string[] speakerNames; // Noms (facultatif)
-    public bool[] isSpeakerA;    // true = perso A parle, false = perso B
+    public string[] dialogues;
+    public string[] speakerNames;
+    public bool[] isSpeakerA;
     public float typingSpeed = 0.03f;
 
     [Header("Scene Transition")]
@@ -26,21 +27,40 @@ public class DialogueSwitcher: MonoBehaviour
     private int currentIndex = 0;
     private bool isTyping = false;
     private bool canContinue = false;
+    private bool skipSelected = false; // 🔹 pour navigation flèches
 
     void Start()
     {
-        // On s'assure qu'une bulle est active au départ
         bubbleA.gameObject.SetActive(false);
         bubbleB.gameObject.SetActive(false);
 
         currentIndex = 0;
         StartCoroutine(TypeDialogue());
+
+        if (skipButton != null)
+        {
+            skipButton.onClick.AddListener(SkipDialogue);
+            skipButton.gameObject.SetActive(true);
+        }
     }
 
     void Update()
     {
+        // 🔹 Navigation gauche/droite entre le mode dialogue et le bouton Skip
+        if (Input.GetKeyDown(KeyCode.RightArrow))
+            skipSelected = true;
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
+            skipSelected = false;
+
+        // 🔹 Action selon le mode sélectionné
         if (Input.GetKeyDown(KeyCode.Return))
         {
+            if (skipSelected)
+            {
+                SkipDialogue();
+                return;
+            }
+
             if (isTyping)
             {
                 StopAllCoroutines();
@@ -49,12 +69,19 @@ public class DialogueSwitcher: MonoBehaviour
             else if (canContinue)
             {
                 currentIndex++;
-
                 if (currentIndex < dialogues.Length)
                     StartCoroutine(TypeDialogue());
                 else
                     StartCoroutine(LoadNextScene());
             }
+        }
+
+        // 🔹 Feedback visuel du bouton sélectionné
+        if (skipButton != null)
+        {
+            var colors = skipButton.colors;
+            colors.normalColor = skipSelected ? new Color(0.8f, 0.8f, 1f) : Color.white;
+            skipButton.colors = colors;
         }
     }
 
@@ -63,7 +90,6 @@ public class DialogueSwitcher: MonoBehaviour
         isTyping = true;
         canContinue = false;
 
-        // Active la bonne bulle
         bool aSpeaks = isSpeakerA[currentIndex];
         bubbleA.gameObject.SetActive(aSpeaks);
         bubbleB.gameObject.SetActive(!aSpeaks);
@@ -76,7 +102,6 @@ public class DialogueSwitcher: MonoBehaviour
         else if (nameText != null)
             nameText.text = "";
 
-        // Effet machine à écrire
         foreach (char letter in dialogues[currentIndex])
         {
             currentText.text += letter;
@@ -100,5 +125,12 @@ public class DialogueSwitcher: MonoBehaviour
     {
         yield return new WaitForSeconds(0.5f);
         SceneManager.LoadScene(nextSceneName);
+    }
+
+    // 🔹 Fonction Skip
+    public void SkipDialogue()
+    {
+        StopAllCoroutines();
+        StartCoroutine(LoadNextScene());
     }
 }

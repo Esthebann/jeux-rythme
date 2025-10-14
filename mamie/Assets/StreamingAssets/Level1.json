@@ -1,15 +1,12 @@
 {
-  "songName": "Song",
+  "songName": "aa",
   "notes": [
-    { "time": 1.0, "lane": 0, "spriteName": "A", "animationName": "Gobelet", "trajectoryType": 0 },
-    { "time": 2.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 1 },
-    { "time": 2.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 2 },
-    { "time": 2.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 0 },
-    { "time": 3.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 0 },
-    { "time": 4.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 0 },
-    { "time": 5.0, "lane": 1, "spriteName": "A", "animationName": "Canette", "trajectoryType": 0 },
-    { "time": 3.5, "lane": 0, "spriteName": "A", "animationName": "alcool", "trajectoryType": 2 }
+    { "time": 3, "spawnTime": 0, "lane": 0, "spriteName": "A", "animationName": "Gobelet", "trajectoryType": 2 },
+    { "time": 5, "spawnTime": 2, "lane": 1, "spriteName": "B", "animationName": "Gobelet", "trajectoryType": 2 },
+    { "time": 7, "spawnTime": 4, "lane": 2, "spriteName": "C", "animationName": "Gobelet", "trajectoryType": 2 },
+        { "time": 7, "spawnTime": 5, "lane": 2, "spriteName": "C", "animationName": "Gobelet", "trajectoryType": 2 },
+            { "time": 9, "spawnTime": 6, "lane": 2, "spriteName": "C", "animationName": "Gobelet", "trajectoryType": 2 },
+                { "time": 10, "spawnTime": 7, "lane": 2, "spriteName": "C", "animationName": "Gobelet", "trajectoryType": 2 },
+    { "time": 100, "spawnTime": 10, "lane": 3, "spriteName": "D", "animationName": "Gobelet", "trajectoryType": 2 }
   ]
 }
-
-
